@@ -311,9 +311,8 @@ converts RGB to grayscale (retaining grayscale 16-bit precision), normalizes
 using image percentiles, and fits the image within 192 x 192 with symmetric
 padding. The nonzero-content mask is not a validated brain segmentation.
 Screenshots are not registered to the training reference, so this preview does
-not establish cohort-comparable reconstruction performance. The advanced
-prepared-PNG path retains its original normalization, and the NIfTI path and
-supervised page are unchanged. Downloads mark screenshot previews explicitly.
+not establish cohort-comparable reconstruction performance. The redundant manual prepared-PNG option has been removed; image uploads use
+the automatic conversion path. The NIfTI path and supervised page are unchanged. Downloads mark screenshot previews explicitly.
 All 20 focused tests passed, with a synthetic color-JPEG upload checked through
 both single-model and comparison views. These are functional checks, not new
 MRI accuracy results.

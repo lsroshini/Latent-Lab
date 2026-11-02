@@ -57,7 +57,7 @@ st.sidebar.caption(f'{len(checkpoints)} trained models · spatial models listed 
 st.write('**'+('Model comparison' if comparison else model_label(selected[0]))+'**')
 st.caption('All selected models use the same input image, slice and intensity scale.')
 
-source=st.radio('MRI source',['Prepared example','Upload MRI image','Upload NIfTI volume','Upload prepared grayscale PNG'],horizontal=True)
+source=st.radio('MRI source',['Prepared example','Upload MRI image','Upload NIfTI volume'],horizontal=True)
 prepared=None;images=None;brain=None;z_indices=None;input_hash=None
 if source=='Prepared example':
     index_path=PREPARED_DIR/'index.json'
@@ -92,20 +92,6 @@ elif source=='Upload NIfTI volume':
         except Exception as error:st.error(f'Preparation failed: {error}')
     if upload and st.session_state.get('reconstruction_upload_hash')==hashlib.sha256(upload.getvalue()).hexdigest():
         prepared=Path(st.session_state['reconstruction_upload'])
-else:
-    st.write('Use a grayscale 192 × 192 PNG exported with the same alignment and volume intensity normalization.')
-    upload=st.file_uploader('Prepared slice',type=['png'])
-    if upload:
-        import cv2
-        from scipy.ndimage import binary_fill_holes
-        values=cv2.imdecode(np.frombuffer(upload.getvalue(),dtype=np.uint8),cv2.IMREAD_UNCHANGED)
-        if values is None or values.shape!=(192,192) or values.dtype not in (np.uint8,np.uint16):
-            st.error('Expected a grayscale 192 × 192 PNG with 8-bit or 16-bit values.');st.stop()
-        if st.checkbox('This slice used the same alignment and volume normalization'):
-            images=(values/np.iinfo(values.dtype).max).astype(np.float32)[None]
-            brain=binary_fill_holes(values>0).astype(np.uint8)[None]
-            input_hash=hashlib.sha256(upload.getvalue()).hexdigest()
-
 if prepared:
     with np.load(prepared,allow_pickle=False) as volume:
         images=volume['image'];brain=volume['brain'];z_indices=volume['z_indices']

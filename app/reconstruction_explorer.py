@@ -40,12 +40,13 @@ def cached_model(path,fingerprint):
     return load_model(checkpoint,device='cpu')
 
 
-checkpoints=sorted((ROOT/'runs/models').glob('*/best.pt'))
-checkpoints+=sorted((ROOT/'runs/spatial-restoration-v1/models').glob('*/best.pt'))
+checkpoints=sorted((ROOT/'runs/spatial-restoration-v1/models').glob('*/best.pt'))
+checkpoints+=sorted((ROOT/'runs/models').glob('*/best.pt'))
 if not checkpoints:
     st.info('Install the trained model artifacts to compare reconstructions. See README.md.');st.stop()
 default=next((i for i,p in enumerate(checkpoints) if p.parent.name=='spatial-ae'),0)
 checkpoint=st.sidebar.selectbox('Model',checkpoints,index=default,format_func=model_label)
+st.sidebar.caption(f'{len(checkpoints)} trained models · spatial models listed first')
 fingerprint=sha256(checkpoint)
 model,device=cached_model(str(checkpoint),fingerprint)
 is_spatial=checkpoint.parent.name in ('spatial-ae','spatial-vae')

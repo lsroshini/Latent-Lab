@@ -91,3 +91,6 @@ No manual image-format confirmation is required. This works in comparison mode.
 It is a single-image preview, without anatomical registration or validated skull
 stripping; it does not repair the separate raw NIfTI runtime restriction.
 The supervised page remains unchanged.
+
+The reconstruction explorer offers **Prepared example** and **Upload MRI image**.
+Its NIfTI upload option has been removed while fresh preparation is blocked.

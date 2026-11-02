@@ -11,7 +11,7 @@ import numpy as np
 import streamlit as st
 import torch
 from brain_mri_anomaly.common import ROOT,PREPARED_DIR,read_json,sha256
-from brain_mri_anomaly.inference import load_model,reconstruct_volume,prepare_nifti_bytes,cached_nifti_preparation
+from brain_mri_anomaly.inference import load_model,reconstruct_volume
 from brain_mri_anomaly.restoration import load_restoration
 from brain_mri_anomaly.image_input import prepare_image_preview
 
@@ -57,7 +57,7 @@ st.sidebar.caption(f'{len(checkpoints)} trained models · spatial models listed 
 st.write('**'+('Model comparison' if comparison else model_label(selected[0]))+'**')
 st.caption('All selected models use the same input image, slice and intensity scale.')
 
-source=st.radio('MRI source',['Prepared example','Upload MRI image','Upload NIfTI volume'],horizontal=True)
+source=st.radio('MRI source',['Prepared example','Upload MRI image'],horizontal=True)
 prepared=None;images=None;brain=None;z_indices=None;input_hash=None
 if source=='Prepared example':
     index_path=PREPARED_DIR/'index.json'
@@ -76,22 +76,6 @@ elif source=='Upload MRI image':
             input_hash=hashlib.sha256(b'image-preview-v1'+raw).hexdigest()
             st.caption(f"Converted {conversion['original_size'][0]} × {conversion['original_size'][1]} image to grayscale, fitted within 192 × 192.")
         except ValueError as error:st.error(str(error));st.stop()
-elif source=='Upload NIfTI volume':
-    st.write('Use a structural T2 brain MRI. Previously prepared volumes can be reused from the local cache.')
-    capability=ROOT/'runs/runtime-capabilities/raw-upload.json'
-    if capability.exists() and read_json(capability).get('status')=='unavailable':
-        st.info('Fresh NIfTI preparation is unavailable on this laptop because a brain-extraction dependency is blocked. Prepared examples and cached volumes remain available.')
-    upload=st.file_uploader('MRI volume',type=['nii','gz'])
-    confirmed=st.checkbox('This is a T2-weighted structural brain MRI')
-    cached=cached_nifti_preparation(upload.getvalue()) if upload else None
-    if upload and confirmed and st.button('Load cached preparation' if cached else 'Prepare MRI'):
-        try:
-            with st.spinner('Preparing MRI locally…'):
-                st.session_state['reconstruction_upload']=str(prepare_nifti_bytes(upload.getvalue(),upload.name,device='cpu'))
-                st.session_state['reconstruction_upload_hash']=hashlib.sha256(upload.getvalue()).hexdigest()
-        except Exception as error:st.error(f'Preparation failed: {error}')
-    if upload and st.session_state.get('reconstruction_upload_hash')==hashlib.sha256(upload.getvalue()).hexdigest():
-        prepared=Path(st.session_state['reconstruction_upload'])
 if prepared:
     with np.load(prepared,allow_pickle=False) as volume:
         images=volume['image'];brain=volume['brain'];z_indices=volume['z_indices']

@@ -316,3 +316,8 @@ the automatic conversion path. The NIfTI path and supervised page are unchanged.
 All 20 focused tests passed, with a synthetic color-JPEG upload checked through
 both single-model and comparison views. These are functional checks, not new
 MRI accuracy results.
+
+The reconstruction explorer now offers only prepared examples and automatic
+PNG/JPEG image upload. Its blocked fresh-NIfTI upload option was removed.
+The supervised page and its existing prepared/cached-input behavior remain
+unchanged.

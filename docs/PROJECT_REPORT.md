@@ -20,6 +20,9 @@ The delivered app has two explicit functions:
    only. It includes spatial AE/VAE plus the earlier baseline, denoising,
    larger-latent and MSE models. It displays no anomaly scores, thresholds,
    heatmaps, overlays or classification. The spatial AE is the default.
+   Comparison mode displays up to three selected models beside the original,
+   sharing the same MRI slice and intensity scale. Completed outputs are reused
+   when changing slices or adding another model.
 2. **Supervised AE comparison:** a separate normal/abnormal decision stage using
    fixed AE outputs, with image-only and reconstruction-only controls.
 

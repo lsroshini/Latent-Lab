@@ -15,6 +15,8 @@ walkthrough. The full research workspace remains preserved locally.
 - **Reconstruction explorer:** choose an available trained AE or VAE
   checkpoint, including spatial AE/VAE and the earlier baseline, denoising,
   larger-latent and MSE models. Inspect only the original MRI and reconstruction.
+  Choose **Compare models** in the sidebar to view up to three reconstructions
+  beside the same original MRI, with one synchronized slice slider.
   This page has no anomaly scores, thresholds, heatmaps or classification.
 - **Supervised AE comparison:** compare two fixed AE reconstructions and
   supervised normal/abnormal decisions. This page does not use a VAE.
@@ -51,7 +53,7 @@ Alternatively:
 ```
 
 Open http://127.0.0.1:8501. To see a VAE, choose **Reconstruction explorer**
-and then **Spatial VAE** or **VAE · denoising, latent 64** in the Model selector, when that checkpoint is
+and then **Spatial VAE** or **VAE Â· denoising, latent 64** in the Model selector, when that checkpoint is
 installed. The supervised page is at `/supervised-comparison`.
 
 MRI images, model weights, fitted classifiers, calibration metadata, and

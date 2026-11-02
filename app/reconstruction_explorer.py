@@ -45,13 +45,16 @@ checkpoints+=sorted((ROOT/'runs/models').glob('*/best.pt'))
 if not checkpoints:
     st.info('Install the trained model artifacts to compare reconstructions. See README.md.');st.stop()
 default=next((i for i,p in enumerate(checkpoints) if p.parent.name=='spatial-ae'),0)
-checkpoint=st.sidebar.selectbox('Model',checkpoints,index=default,format_func=model_label)
+comparison=st.sidebar.radio('View',['Single model','Compare models'])=='Compare models'
+if comparison:
+    selected=st.sidebar.multiselect('Models to compare',checkpoints,default=checkpoints[:2],
+        format_func=model_label,max_selections=3)
+    if not selected:st.info('Select at least one model to compare.');st.stop()
+else:
+    selected=[st.sidebar.selectbox('Model',checkpoints,index=default,format_func=model_label)]
 st.sidebar.caption(f'{len(checkpoints)} trained models · spatial models listed first')
-fingerprint=sha256(checkpoint)
-model,device=cached_model(str(checkpoint),fingerprint)
-is_spatial=checkpoint.parent.name in ('spatial-ae','spatial-vae')
-st.write('**'+model_label(checkpoint)+'**')
-st.caption('Spatial bottleneck with feature skip connections.' if is_spatial else 'Vector latent bottleneck with a convolutional encoder and upsampling decoder.')
+st.write('**'+('Model comparison' if comparison else model_label(selected[0]))+'**')
+st.caption('All selected models use the same prepared MRI, slice and intensity scale.')
 
 source=st.radio('MRI source',['Prepared example','Upload NIfTI volume','Upload prepared grayscale PNG'],horizontal=True)
 prepared=None;images=None;brain=None;z_indices=None;input_hash=None
@@ -100,28 +103,41 @@ if images is None:st.stop()
 if images.ndim!=3 or images.shape[1:]!=(192,192) or brain.shape!=images.shape or not np.isfinite(images).all() or not brain.reshape(len(brain),-1).any(axis=1).all():
     st.error('Expected finite prepared MRI slices with matching nonempty brain masks.');st.stop()
 
-key=(input_hash,fingerprint)
-if st.session_state.get('reconstruction_only_key')!=key:
-    progress=st.progress(0.,text='Reconstructing MRI on CPU…');started=time.perf_counter()
-    with st.spinner('Reconstructing the prepared MRI…'):
-        reconstruction=reconstruct_volume(model,device,images,brain,
-            progress=lambda done,total:progress.progress(done/total,text=f'Reconstructed {done}/{total} slices'))[0]
-    progress.empty()
-    st.session_state['reconstruction_only_output']=reconstruction
-    st.session_state['reconstruction_only_key']=key
-    st.session_state['reconstruction_only_seconds']=time.perf_counter()-started
-reconstruction=st.session_state['reconstruction_only_output']
-st.caption(f"Reconstructed all {len(images)} prepared slices in {st.session_state['reconstruction_only_seconds']:.1f} seconds on CPU.")
+if st.session_state.get('comparison_input')!=input_hash:
+    st.session_state['comparison_input']=input_hash
+    st.session_state['comparison_outputs']={}
+outputs=st.session_state['comparison_outputs']
+fingerprints={path:sha256(path) for path in selected}
+for previous in list(outputs):
+    if previous not in fingerprints.values():del outputs[previous]
+for checkpoint,fingerprint in fingerprints.items():
+    if fingerprint not in outputs:
+        model,device=cached_model(str(checkpoint),fingerprint)
+        progress=st.progress(0.,text='Reconstructing '+model_label(checkpoint)+' on CPU…');started=time.perf_counter()
+        with st.spinner('Reconstructing '+model_label(checkpoint)+'…'):
+            reconstruction=reconstruct_volume(model,device,images,brain,
+                progress=lambda done,total:progress.progress(done/total,text=f'Reconstructed {done}/{total} slices'))[0]
+        progress.empty()
+        outputs[fingerprint]={'image':reconstruction,'seconds':time.perf_counter()-started,'config':asdict(model.config)}
+if not comparison:
+    fingerprint=fingerprints[selected[0]]
+    st.session_state['reconstruction_only_output']=outputs[fingerprint]['image']
+    st.session_state['reconstruction_only_key']=(input_hash,fingerprint)
+    st.session_state['reconstruction_only_seconds']=outputs[fingerprint]['seconds']
+st.caption(f'All {len(images)} prepared slices reconstructed on CPU. Slice changes reuse the existing outputs.')
 slice_index=st.slider('Prepared axial slice',0,len(images)-1,len(images)//2,key='reconstruction_slice_'+input_hash[:12]) if len(images)>1 else 0
-left,right=st.columns(2)
-left.image(np.clip(images[slice_index],0,1),caption='Original prepared MRI',width='stretch')
-right.image(np.clip(reconstruction[slice_index],0,1),caption=model_label(checkpoint)+' reconstruction',width='stretch')
+columns=st.columns(1+len(selected))
+columns[0].image(np.clip(images[slice_index],0,1),caption='Original prepared MRI',width='stretch')
+for column,checkpoint in zip(columns[1:],selected):
+    column.image(np.clip(outputs[fingerprints[checkpoint]]['image'][slice_index],0,1),caption=model_label(checkpoint),width='stretch')
 st.caption('The image and slice stay the same when you select another model. A reconstruction can preserve or reproduce an abnormality.')
 
 with st.expander('Model details'):
-    st.json(asdict(model.config))
+    st.json({path.parent.name:outputs[fingerprints[path]]['config'] for path in selected})
 buffer=io.BytesIO()
-np.savez_compressed(buffer,image=images[slice_index],reconstruction=reconstruction[slice_index],
+exported={'reconstruction_'+path.parent.name:outputs[fingerprints[path]]['image'][slice_index] for path in selected}
+if not comparison:exported['reconstruction']=outputs[fingerprints[selected[0]]]['image'][slice_index]
+np.savez_compressed(buffer,image=images[slice_index],**exported,
     prepared_grid_z_index=int(z_indices[slice_index]) if z_indices is not None else -1,
-    model_name=checkpoint.parent.name,checkpoint_sha256=fingerprint)
-st.download_button('Download selected slice and reconstruction',buffer.getvalue(),'mri_reconstruction.npz','application/octet-stream')
+    model_names=np.array([path.parent.name for path in selected]),checkpoint_sha256=np.array(list(fingerprints.values())))
+st.download_button('Download selected slice and reconstructions',buffer.getvalue(),'mri_reconstruction.npz','application/octet-stream')

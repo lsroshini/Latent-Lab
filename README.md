@@ -81,3 +81,13 @@ probabilities, and reconstruction heatmaps are not explanations of the classifie
 Verification: 17 focused unit tests passed. Real prepared-MRI checks passed for
 all ten reconstruction models, matching spatial AE outputs across pages, and
 normal/abnormal success and failure cases with unchanged classifier scores.
+
+## Automatic image upload
+
+Choose **Upload MRI image** in the reconstruction explorer and upload PNG/JPG.
+The app converts color to grayscale, scales intensities, corrects embedded image
+orientation, and resizes with proportion-preserving padding to 192 x 192.
+No manual image-format confirmation is required. This works in comparison mode.
+It is a single-image preview, without anatomical registration or validated skull
+stripping; it does not repair the separate raw NIfTI runtime restriction.
+The supervised page remains unchanged.

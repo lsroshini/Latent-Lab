@@ -13,6 +13,7 @@ import torch
 from brain_mri_anomaly.common import ROOT,PREPARED_DIR,read_json,sha256
 from brain_mri_anomaly.inference import load_model,reconstruct_volume,prepare_nifti_bytes,cached_nifti_preparation
 from brain_mri_anomaly.restoration import load_restoration
+from brain_mri_anomaly.image_input import prepare_image_preview
 
 st.set_page_config(page_title='Brain MRI reconstruction explorer',layout='wide')
 st.title('Brain MRI reconstruction explorer')
@@ -54,9 +55,9 @@ else:
     selected=[st.sidebar.selectbox('Model',checkpoints,index=default,format_func=model_label)]
 st.sidebar.caption(f'{len(checkpoints)} trained models · spatial models listed first')
 st.write('**'+('Model comparison' if comparison else model_label(selected[0]))+'**')
-st.caption('All selected models use the same prepared MRI, slice and intensity scale.')
+st.caption('All selected models use the same input image, slice and intensity scale.')
 
-source=st.radio('MRI source',['Prepared example','Upload NIfTI volume','Upload prepared grayscale PNG'],horizontal=True)
+source=st.radio('MRI source',['Prepared example','Upload MRI image','Upload NIfTI volume','Upload prepared grayscale PNG'],horizontal=True)
 prepared=None;images=None;brain=None;z_indices=None;input_hash=None
 if source=='Prepared example':
     index_path=PREPARED_DIR/'index.json'
@@ -65,6 +66,16 @@ if source=='Prepared example':
     if not records:st.info('Prepared examples are unavailable.');st.stop()
     row=st.selectbox('Example',records,format_func=lambda r:f"{r['scan_id']} · dataset label: {r['label']}")
     prepared=Path(row['prepared_path'])
+elif source=='Upload MRI image':
+    st.write('Upload a PNG or JPG. Grayscale conversion, intensity scaling and resizing happen automatically; image proportions are preserved with padding.')
+    st.caption('This is a single-image reconstruction preview. Screenshot conversion does not perform the anatomical registration or full-volume preparation used during training.')
+    upload=st.file_uploader('MRI image',type=['png','jpg','jpeg'])
+    if upload:
+        try:
+            raw=upload.getvalue();images,brain,conversion=prepare_image_preview(raw)
+            input_hash=hashlib.sha256(b'image-preview-v1'+raw).hexdigest()
+            st.caption(f"Converted {conversion['original_size'][0]} × {conversion['original_size'][1]} image to grayscale, fitted within 192 × 192.")
+        except ValueError as error:st.error(str(error));st.stop()
 elif source=='Upload NIfTI volume':
     st.write('Use a structural T2 brain MRI. Previously prepared volumes can be reused from the local cache.')
     capability=ROOT/'runs/runtime-capabilities/raw-upload.json'
@@ -124,10 +135,10 @@ if not comparison:
     st.session_state['reconstruction_only_output']=outputs[fingerprint]['image']
     st.session_state['reconstruction_only_key']=(input_hash,fingerprint)
     st.session_state['reconstruction_only_seconds']=outputs[fingerprint]['seconds']
-st.caption(f'All {len(images)} prepared slices reconstructed on CPU. Slice changes reuse the existing outputs.')
+st.caption(f'All {len(images)} input slices reconstructed on CPU. Slice changes reuse the existing outputs.')
 slice_index=st.slider('Prepared axial slice',0,len(images)-1,len(images)//2,key='reconstruction_slice_'+input_hash[:12]) if len(images)>1 else 0
 columns=st.columns(1+len(selected))
-columns[0].image(np.clip(images[slice_index],0,1),caption='Original prepared MRI',width='stretch')
+columns[0].image(np.clip(images[slice_index],0,1),caption='Automatically converted grayscale input' if source=='Upload MRI image' else 'Original prepared MRI',width='stretch')
 for column,checkpoint in zip(columns[1:],selected):
     column.image(np.clip(outputs[fingerprints[checkpoint]]['image'][slice_index],0,1),caption=model_label(checkpoint),width='stretch')
 st.caption('The image and slice stay the same when you select another model. A reconstruction can preserve or reproduce an abnormality.')
@@ -138,6 +149,7 @@ buffer=io.BytesIO()
 exported={'reconstruction_'+path.parent.name:outputs[fingerprints[path]]['image'][slice_index] for path in selected}
 if not comparison:exported['reconstruction']=outputs[fingerprints[selected[0]]]['image'][slice_index]
 np.savez_compressed(buffer,image=images[slice_index],**exported,
+    input_mode=source,screenshot_preview=source=='Upload MRI image',
     prepared_grid_z_index=int(z_indices[slice_index]) if z_indices is not None else -1,
     model_names=np.array([path.parent.name for path in selected]),checkpoint_sha256=np.array(list(fingerprints.values())))
 st.download_button('Download selected slice and reconstructions',buffer.getvalue(),'mri_reconstruction.npz','application/octet-stream')

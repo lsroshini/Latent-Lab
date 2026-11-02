@@ -302,3 +302,18 @@ Related reconstruction research includes
 This implementation is not claimed to reproduce those papers or introduce
 the general AE/VAE anomaly-detection concept. The contribution is the implemented
 system, evaluated comparisons, explicit controls, and honest development record.
+
+## Automatic raster-image reconstruction previews
+
+The reconstruction explorer now accepts PNG/JPEG without manual formatting.
+`image_input.py` reads image orientation, composites transparency over black,
+converts RGB to grayscale (retaining grayscale 16-bit precision), normalizes
+using image percentiles, and fits the image within 192 x 192 with symmetric
+padding. The nonzero-content mask is not a validated brain segmentation.
+Screenshots are not registered to the training reference, so this preview does
+not establish cohort-comparable reconstruction performance. The advanced
+prepared-PNG path retains its original normalization, and the NIfTI path and
+supervised page are unchanged. Downloads mark screenshot previews explicitly.
+All 20 focused tests passed, with a synthetic color-JPEG upload checked through
+both single-model and comparison views. These are functional checks, not new
+MRI accuracy results.

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brain-mri-anomaly"
+version = "0.1.0"
+description = "Brain MRI AE/VAE reconstruction with separate supervised AE readouts"
+requires-python = ">=3.10"
+dependencies = ["numpy", "torch", "nibabel", "SimpleITK", "scipy", "scikit-image", "scikit-learn", "joblib", "pillow", "matplotlib", "opencv-python-headless", "streamlit>=1.66.1", "hd-bet==2.0.1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

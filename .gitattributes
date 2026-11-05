@@ -1,0 +1,6 @@
+# Frozen experiment provenance checks exact source bytes, including line endings.
+/src/** -text
+/scripts/** -text
+/tests/** -text
+/app/** -text
+/configs/** -text
